@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kerala Train Simulator</title>
+  <link rel="stylesheet" href="css/style.css" />
+
+  <!-- Import map: pins the exact Three.js version used by all modules below.
+       Loaded from the unpkg CDN, which mirrors the official npm "three" package. -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <!-- The 3D game is hidden until "Drive & Explore" is clicked — heavy assets (the locomotive
+       model, tree models, world generation) only load then, so the menu itself opens instantly. -->
+  <canvas id="game-canvas" class="hidden"></canvas>
+
+  <div id="loading-screen" class="hidden">
+    <div class="loading-inner">
+      <div class="loading-title">Loading Kerala railway world...</div>
+      <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+    </div>
+  </div>
+
+  <!-- ================= HUD (gameplay overlay) ================= -->
+  <div id="hud" class="hidden">
+    <div id="hud-top-left">
+      <div id="hud-speed">0 km/h</div>
+      <div class="hud-bar-row">
+        <span class="hud-label">Throttle</span>
+        <div class="hud-bar"><div id="hud-throttle" class="hud-bar-fill throttle"></div></div>
+      </div>
+      <div class="hud-bar-row">
+        <span class="hud-label">Brake</span>
+        <div class="hud-bar"><div id="hud-brake" class="hud-bar-fill brake"></div></div>
+      </div>
+      <div id="hud-camera">External Camera</div>
+    </div>
+
+    <div id="hud-junction"></div>
+    <div id="fps-counter" class="hidden">-- FPS</div>
+
+    <div id="hud-controls">
+      <div class="hud-controls-title">Controls</div>
+      <div><b>W</b> Throttle up</div>
+      <div><b>S</b> Brake</div>
+      <div><b>Space</b> Emergency brake</div>
+      <div><b>H</b> Horn</div>
+      <div><b>C</b> Switch camera</div>
+      <div><b>R</b> Reset position</div>
+      <div><b>T</b> Switch track at junction</div>
+      <div><b>M</b> Open/close map</div>
+      <div><b>ESC</b> Pause</div>
+      <div class="hud-controls-note">Free Camera: click the game to enable mouse look, WASD move, Q/E down/up, Shift/Ctrl speed</div>
+    </div>
+  </div>
+
+  <canvas id="minimap-canvas" width="340" height="520" class="hidden"></canvas>
+
+  <!-- ================= MENU SYSTEM ================= -->
+  <div id="menu-root">
+
+    <!-- First-launch username dialog -->
+    <div id="username-dialog" class="modal-overlay hidden">
+      <div class="modal-box">
+        <h2>Welcome to Kerala Train Simulator</h2>
+        <p>Enter your driver name</p>
+        <input id="username-input" type="text" maxlength="20" autocomplete="off" />
+        <button id="username-continue" class="btn-primary">CONTINUE</button>
+      </div>
+    </div>
+
+    <!-- Main menu -->
+    <div id="main-menu" class="screen">
+      <div class="menu-topbar">
+        <div class="menu-logo">
+          <span class="menu-logo-icon">🚆</span>
+          <div class="menu-logo-text">KERALA<br />TRAIN SIMULATOR</div>
+        </div>
+
+        <nav class="menu-nav">
+          <button class="menu-tab active" data-tab="home"><span class="tab-icon">⌂</span>HOME</button>
+          <button class="menu-tab" data-tab="profile">PROFILE</button>
+          <button class="menu-tab" data-tab="options">OPTIONS</button>
+        </nav>
+
+        <div class="menu-topright">
+          <button class="icon-btn" data-tab="options" title="Settings">⚙</button>
+          <button class="icon-btn" disabled title="Friends (offline game — not available)">👥</button>
+          <button class="icon-btn" data-tab="profile" title="Profile">👤</button>
+          <span id="menu-username">Hamdan</span>
+          <div class="menu-avatar"></div>
+        </div>
+      </div>
+
+      <!-- HOME panel -->
+      <div class="menu-panel" id="panel-home">
+        <div class="menu-cards-grid">
+          <button class="menu-card card-large card-drive" data-action="drive">
+            <div class="card-badge">NEW</div>
+            <div class="card-caption">
+              <span class="card-chevron">›</span>
+              <div>
+                <div class="card-title">DRIVE &amp; EXPLORE</div>
+                <div class="card-desc">Take control of realistic Indian trains and explore Kerala.</div>
+              </div>
+            </div>
+          </button>
+
+          <button class="menu-card card-large card-scenarios" data-action="scenarios">
+            <div class="card-badge">NEW</div>
+            <div class="card-caption">
+              <span class="card-chevron">›</span>
+              <div>
+                <div class="card-title">SCENARIOS</div>
+                <div class="card-desc">Experience realistic railway operations across Kerala.</div>
+              </div>
+            </div>
+          </button>
+
+          <button class="menu-card card-small card-training" data-action="training">
+            <div class="card-caption">
+              <span class="card-chevron">›</span>
+              <div>
+                <div class="card-title">TRAINING</div>
+                <div class="card-desc">Learn train controls, signalling and railway operations.</div>
+              </div>
+            </div>
+          </button>
+
+          <button class="menu-card card-small card-route" data-action="route">
+            <div class="card-caption">
+              <span class="card-chevron">›</span>
+              <div>
+                <div class="card-title">ROUTE / EXPLORE</div>
+                <div class="card-desc">Explore the railway corridor, stations, bridges and landscapes.</div>
+              </div>
+            </div>
+          </button>
+
+          <button class="menu-card card-small card-trains" data-action="trains">
+            <div class="card-caption">
+              <span class="card-chevron">›</span>
+              <div>
+                <div class="card-title">TRAINS</div>
+                <div class="card-desc">View and select available locomotives and coaches.</div>
+              </div>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <!-- PROFILE panel -->
+      <div class="menu-panel hidden" id="panel-profile">
+        <div class="profile-box">
+          <h2>DRIVER PROFILE</h2>
+          <div class="profile-row">
+            <span class="profile-label">Username:</span>
+            <span id="profile-username">Hamdan</span>
+          </div>
+          <button id="profile-change-username" class="btn-secondary">CHANGE USERNAME</button>
+        </div>
+      </div>
+
+      <!-- OPTIONS panel -->
+      <div class="menu-panel hidden" id="panel-options">
+        <div class="options-box">
+          <h2>OPTIONS</h2>
+
+          <div class="option-row">
+            <label for="opt-graphics">Graphics Quality</label>
+            <select id="opt-graphics">
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+            </select>
+          </div>
+
+          <div class="option-row">
+            <label for="opt-shadows">Shadow Quality</label>
+            <input type="checkbox" id="opt-shadows" />
+          </div>
+
+          <div class="option-row">
+            <label for="opt-view-distance">View Distance</label>
+            <select id="opt-view-distance">
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+            </select>
+          </div>
+
+          <div class="option-row">
+            <label for="opt-sensitivity">Free Camera Sensitivity</label>
+            <input type="range" id="opt-sensitivity" min="0.0006" max="0.006" step="0.0002" />
+          </div>
+
+          <div class="option-row">
+            <label for="opt-master-volume">Audio Volume</label>
+            <input type="range" id="opt-master-volume" min="0" max="1" step="0.05" />
+          </div>
+
+          <div class="option-row">
+            <label for="opt-train-volume">Train Sound</label>
+            <input type="range" id="opt-train-volume" min="0" max="1" step="0.05" />
+          </div>
+
+          <div class="option-row">
+            <label for="opt-fullscreen">Fullscreen</label>
+            <button id="opt-fullscreen" class="btn-secondary btn-small">Toggle</button>
+          </div>
+
+          <div class="option-row">
+            <label for="opt-fps-counter">FPS Counter</label>
+            <input type="checkbox" id="opt-fps-counter" />
+          </div>
+        </div>
+      </div>
+
+      <div class="menu-bottombar">
+        <button class="bottombar-item" id="menu-quit"><kbd>ESC</kbd> QUIT TO DESKTOP</button>
+        <button class="bottombar-item" id="menu-support">📖 READ SUPPORT &amp; RELEASE NOTES</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pause menu (shown over the running game) -->
+  <div id="pause-menu" class="screen hidden">
+    <div class="pause-box">
+      <h2>PAUSED</h2>
+      <button id="pause-resume" class="btn-primary">RESUME</button>
+      <button id="pause-options" class="btn-secondary">OPTIONS</button>
+      <button id="pause-mainmenu" class="btn-secondary">MAIN MENU</button>
+    </div>
+  </div>
+
+  <div id="toast" class="hidden"></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
